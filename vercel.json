@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/telegram/retry",
+      "schedule": "0 3 * * *"
+    }
+  ],
+  "functions": {
+    "app/api/matches/[matchId]/evidence/route.ts": { "maxDuration": 300 },
+    "app/api/matches/[matchId]/verify/route.ts": { "maxDuration": 300 }
+  }
+}
