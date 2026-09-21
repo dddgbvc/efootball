@@ -1,11 +1,14 @@
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { ModerationQueue } from '@/components/admin/ModerationQueue';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminModerationPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const admin = createAdminClient();
+  // Read as the signed-in admin. Every table below is gated by an RLS policy
+  // on app.is_tournament_admin(), so this page needs no service-role secret —
+  // and cannot read past what this particular admin is entitled to see.
+  const admin = await createServerSupabase();
 
   const { data: reports } = await admin
     .from('moderation_reports')

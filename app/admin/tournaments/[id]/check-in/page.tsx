@@ -1,10 +1,13 @@
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createServerSupabase } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminCheckInPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const admin = createAdminClient();
+  // Read as the signed-in admin. Every table below is gated by an RLS policy
+  // on app.is_tournament_admin(), so this page needs no service-role secret —
+  // and cannot read past what this particular admin is entitled to see.
+  const admin = await createServerSupabase();
 
   const [{ data: tournament }, { data: players }] = await Promise.all([
     admin
