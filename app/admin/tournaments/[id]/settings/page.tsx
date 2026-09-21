@@ -20,8 +20,7 @@ export default async function AdminSettingsPage(props: { params: Promise<{ id: s
 
   const facts: Array<[string, string]> = [
     ['الرابط', `/tournaments/${tournament.slug}`],
-    ['الظهور', tournament.visibility === 'public' ? 'عامة' : 'بالدعوة فقط'],
-    ['اعتماد تلقائي للاعبين', tournament.auto_approve ? 'نعم' : 'لا'],
+    ['الظهور', tournament.visibility === 'public' ? 'عامة' : 'خاصة — بالكود فقط'],
     ['قائمة الانتظار', tournament.waitlist_enabled ? 'مفعّلة' : 'معطّلة'],
     ['المراسل الآلي', tournament.ai_news_enabled ? 'مفعّل' : 'معطّل'],
     [

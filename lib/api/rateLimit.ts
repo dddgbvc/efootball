@@ -2,7 +2,7 @@
  * Small in-process rate limiter.
  *
  * Enough to blunt accidental hammering and casual abuse of the expensive
- * endpoints (AI verification, evidence upload, invite creation). A serverless
+ * endpoints (AI verification, evidence upload, code lookup). A serverless
  * deployment runs several instances, so this is a guard rail, not a quota — the
  * real invariants are all enforced in the database.
  */

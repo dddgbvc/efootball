@@ -15,7 +15,7 @@ export default async function AdminPlayersPage(props: { params: Promise<{ id: st
   const { data: players } = await admin
     .from('tournament_players')
     .select(
-      'id, user_id, status, joined_at, checked_in_at, approved_at, removal_reason, invite_id, public_status, public_note, status_updated_at',
+      'id, user_id, status, joined_at, checked_in_at, approved_at, removal_reason, public_status, public_note, status_updated_at',
     )
     .eq('tournament_id', id)
     .order('joined_at', { ascending: true });
@@ -26,7 +26,7 @@ export default async function AdminPlayersPage(props: { params: Promise<{ id: st
     { data: profiles },
     { data: acceptances },
     { data: privateNotes },
-    { data: invites },
+    { data: joinRequests },
     { data: rules },
     bundle,
   ] = await Promise.all([
@@ -40,8 +40,8 @@ export default async function AdminPlayersPage(props: { params: Promise<{ id: st
       .order('created_at', { ascending: false }),
     admin.from('player_admin_notes').select('user_id, note').eq('tournament_id', id),
     admin
-      .from('tournament_invites')
-      .select('id, label, opened_at, claimed_at')
+      .from('tournament_join_requests')
+      .select('user_id, status, created_at, decided_at')
       .eq('tournament_id', id),
     admin.from('tournament_rules').select('version').eq('tournament_id', id).maybeSingle(),
     loadStandings(admin, id),
@@ -72,7 +72,7 @@ export default async function AdminPlayersPage(props: { params: Promise<{ id: st
       (a) => a.user_id === p.user_id && a.rules_version === currentVersion,
     );
     const standing = bundle.standings.find((s) => s.playerId === p.user_id);
-    const invite = p.invite_id ? invites?.find((i) => i.id === p.invite_id) : undefined;
+    const joinRequest = joinRequests?.find((r) => r.user_id === p.user_id);
 
     return {
       userId: p.user_id,
@@ -82,13 +82,11 @@ export default async function AdminPlayersPage(props: { params: Promise<{ id: st
       privateNote: privateNotes?.find((n) => n.user_id === p.user_id)?.note ?? null,
       statusUpdatedAt: p.status_updated_at,
       rulesState: decision ? (decision.accepted ? 'accepted' : 'declined') : 'pending',
-      inviteState: invite
-        ? invite.claimed_at
-          ? 'الدعوة: تم التسجيل'
-          : invite.opened_at
-            ? 'الدعوة: تم الفتح'
-            : 'الدعوة: تم الإرسال'
-        : null,
+      joinState: joinRequest
+        ? joinRequest.status === 'approved'
+          ? 'انضم بطلب مقبول'
+          : `طلب: ${joinRequest.status}`
+        : 'أُضيف مباشرة',
       played: standing?.played ?? 0,
       points: standing?.points ?? 0,
     };

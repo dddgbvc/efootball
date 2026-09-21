@@ -220,19 +220,11 @@ begin
   select v_tournament, p.id, 'approved', now()
     from (select * from seed_players order by ord limit 15) p;
 
-  insert into public.tournament_invites (
-    tournament_id, label, token, code, max_uses, auto_approve, created_by
-  )
-  values (
-    v_tournament,
-    'دعوة تجريبية',
-    -- url-safe, like the application's own token generator
-    replace(replace(encode(extensions.gen_random_bytes(24), 'base64'), '+', '-'), '/', '_'),
-    'EF16-DEMO',
-    4,
-    true,
-    v_owner
-  );
+  -- A readable code for the demo, in place of the generated one, so the join
+  -- flow can be walked without first looking the code up in the database.
+  insert into public.tournament_join_codes (tournament_id, code)
+  values (v_tournament, 'DEMO-2026')
+  on conflict (tournament_id) do update set code = excluded.code;
 end $$;
 
 commit;

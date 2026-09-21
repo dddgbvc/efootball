@@ -11,7 +11,7 @@ export interface PlayerStatusRow {
   privateNote: string | null;
   statusUpdatedAt: string | null;
   rulesState: 'accepted' | 'declined' | 'pending';
-  inviteState: string | null;
+  joinState: string | null;
   played: number;
   points: number;
 }
@@ -120,7 +120,7 @@ export function PlayerStatusEditor({
               >
                 القوانين: {RULES_LABEL[row.rulesState]}
               </span>
-              {row.inviteState ? <span className="tag">{row.inviteState}</span> : null}
+              {row.joinState ? <span className="tag">{row.joinState}</span> : null}
               <span className="tag numeric">
                 {row.played} مباراة · {row.points} نقطة
               </span>

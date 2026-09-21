@@ -40,7 +40,6 @@ export const createTournamentSchema = z.object({
   platform: z.enum(['ps5', 'ps4', 'xbox', 'pc', 'mobile', 'other']).optional().nullable(),
   prizeInfo: z.string().max(500).optional().nullable(),
   allowedTeams: z.array(z.string().max(60)).max(64).optional().nullable(),
-  autoApprove: z.boolean().default(true),
   waitlistEnabled: z.boolean().default(false),
   aiNewsEnabled: z.boolean().default(true),
   aiNewsMode: z.enum(['review_first', 'automatic']).default('review_first'),
@@ -86,17 +85,15 @@ export const updateProfileSchema = z.object({
   avatarPath: z.string().max(256).optional().nullable(),
 });
 
-export const createInviteSchema = z.object({
-  tournamentId: uuid,
-  label: z.string().max(60).optional().nullable(),
-  maxUses: z.number().int().min(1).max(64).optional().nullable(),
-  expiresAt: z.string().datetime().optional().nullable(),
-  autoApprove: z.boolean().default(true),
+export const joinRequestSchema = z.object({
+  code: z.string().trim().min(1).max(20),
+  message: z.string().trim().max(300).optional(),
 });
 
-export const joinTournamentSchema = z.object({
-  tournamentId: uuid,
-  inviteToken: z.string().min(16).max(128).optional().nullable(),
+export const decideJoinRequestSchema = z.object({
+  requestId: uuid,
+  action: z.enum(['approve', 'reject']),
+  note: z.string().trim().max(300).optional(),
 });
 
 export const submitEvidenceSchema = z.object({

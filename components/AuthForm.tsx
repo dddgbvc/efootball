@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 /**
  * Email/password auth.
  *
- * `next` is carried through the whole flow so an invite link survives
+ * `next` is carried through the whole flow so the page they were heading for survives
  * registration, email verification and login without the player ever losing
  * their place (§23).
  */

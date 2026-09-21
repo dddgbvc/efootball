@@ -486,6 +486,78 @@ tr[data-zone='eliminated'] td:first-child {
 }
 
 /* --------------------------------------------------------------------------
+   A term and its value
+   --------------------------------------------------------------------------
+   Rules sheets and review screens are lists of exactly this. Holding a label
+   column of 140px on a 390px phone leaves the value about 150px, so "دوري +
+   تصفيات" arrives three words to a line and the whole sheet reads like a till
+   receipt. Below the breakpoint the label sits above its value and both get
+   the full width; above it, the two columns return. */
+.fact-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 14px 18px;
+  border-block-end: 1px solid var(--line);
+}
+.fact-row:last-child {
+  border-block-end: none;
+}
+.fact-row > dt {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.fact-row > dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 480px) {
+  .fact-row {
+    grid-template-columns: minmax(140px, 240px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: baseline;
+  }
+  .fact-row > dt {
+    font-size: 14px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The join code
+   --------------------------------------------------------------------------
+   Eight characters that somebody reads off one screen and types into another,
+   so the two jobs are: keep the glyphs apart, and keep the order LTR. The
+   alphabet already excludes I, O, 0 and 1; letter-spacing does the rest, and
+   the isolate stops the hyphen — a bidi-neutral — from drifting in an RTL
+   line the way a sign does. */
+.join-code {
+  display: inline-block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: var(--font-display), monospace;
+  font-size: clamp(26px, 9vw, 38px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  user-select: all;
+}
+
+.join-code-input {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  min-height: 52px;
+}
+
+/* --------------------------------------------------------------------------
    Signed figures in an RTL line
    --------------------------------------------------------------------------
    A goal difference of +4 is a single LTR token. Left to the bidi algorithm in
@@ -524,9 +596,31 @@ tr[data-zone='eliminated'] td:first-child {
   .site-header-inner {
     gap: 10px !important;
   }
+  /* The bar has more links than a phone has room for, so the strip scrolls.
+     Without min-width:0 the flex item refuses to shrink and the last label is
+     sliced mid-word, which reads as a rendering fault rather than as "there is
+     more this way"; the fade at both ends says it scrolls. */
   .site-header-inner nav {
     gap: 12px !important;
     font-size: 13px;
+    flex: 1 1 auto;
+    min-width: 0;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, transparent 0, #000 5%, #000 95%, transparent 100%);
+  }
+  .site-header-inner nav::-webkit-scrollbar {
+    display: none;
+  }
+  .site-header-inner nav a {
+    white-space: nowrap;
+  }
+  /* A two-word display name wrapping to a second line makes the whole bar
+     taller on every page. One line, clipped with an ellipsis. */
+  .site-header-account {
+    max-width: 10ch;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .site-header-cta {
     padding-inline: 12px !important;

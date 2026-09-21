@@ -41,6 +41,18 @@ deployable to Vercel with no long-running server.
 - Home-and-away knockout ties decided on aggregate, then extra time, then
   penalties. Away goals off by default.
 
+**Joining**
+- The organiser shares an eight-character code (`ABCD-1234`, no I/O/0/1). It
+  lives in an admin-only table, so no participant can read their own
+  tournament's code, and it can be rotated at any time.
+- A player signs in, enters the code, and sees the tournament named before
+  committing to anything — including "التسجيل لم يُفتح بعد", so a correct code
+  is never reported as a wrong one.
+- The request is then the organiser's to answer in «الطلبات». A pending request
+  occupies no seat; approval is the single atomic act that adds the roster row,
+  under the same row lock and capacity ceiling as everything else. There is no
+  automatic approval and no way to join without one.
+
 **Result verification**
 - Each participant uploads their own screenshot of the result screen.
 - Evidence is immutable: it can never be edited, replaced or deleted. A mistake
@@ -215,7 +227,9 @@ psql "$SUPABASE_DB_URL" -f supabase/seed/seed.sql
 
 Creates two fictional tournaments: `friday-cup-demo` (8 players, full league
 schedule, first four rounds verified) and `sixteen-invite-demo` (15 of 16 seats
-taken, for exercising invites and the capacity race). The seeded accounts have
+taken, for exercising the last-seat capacity race). The second one carries the
+fixed join code `DEMO-2026`, so the join-by-code flow can be walked without
+looking anything up in the database. The seeded accounts have
 an unusable password hash and cannot sign in — there are no default credentials
 and no admin backdoor.
 
@@ -405,7 +419,7 @@ lib/
   permissions/            server-side authorization, audit logging
   supabase/               browser / server / service-role clients, middleware
   telegram/               client, message composition, outbox
-  tournament/             types, presets, lifecycle, queries, engine, invites
+  tournament/             types, presets, lifecycle, queries, engine
   validation/             Zod schemas for every input
 supabase/
   migrations/             ordered schema, RLS, storage, realtime
@@ -426,8 +440,8 @@ Reviewed adversarially before delivery. Findings and their resolutions:
 | Area | Result |
 |---|---|
 | Capacity bypass / race conditions | Row lock + CHECK; proven by the concurrency suite |
-| Invite abuse | 24-byte CSPRNG tokens, never derived from a row id; expiry, max-uses and revocation checked inside the atomic join; invites unreadable by players |
-| RLS bypass / IDOR | Every policy joins back to a real membership or ownership row; verified for group chat, DMs, attachments and invites |
+| Join code abuse | Eight characters from a 32-letter alphabet, in an admin-only table no participant can read; lookups rate limited per account; a code alone admits nobody — the organiser approves every request |
+| RLS bypass / IDOR | Every policy joins back to a real membership or ownership row; verified for group chat, DMs, attachments and join requests |
 | Privilege escalation | `is_platform_admin` cannot be self-raised (trigger); self-approval impossible (no player UPDATE policy) |
 | Result manipulation | Players hold no write privilege on `matches`; scores only change through `apply_official_result` |
 | Bracket / standings tampering | Same; standings are derived from verified matches only |

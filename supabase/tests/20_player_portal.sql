@@ -324,3 +324,273 @@ end $$;
 reset role;
 
 select 'player portal assertions hold' as result;
+
+-- =============================================================================
+-- 9. Join requests: yours to make and withdraw, the organiser's to answer.
+-- =============================================================================
+reset role;
+
+do $$
+declare
+  v_owner uuid := pg_temp.mk_user('jr-owner');
+  v_a uuid := pg_temp.mk_user('jr-a');
+  v_b uuid := pg_temp.mk_user('jr-b');
+  v_t uuid;
+begin
+  insert into public.tournaments (slug, name, capacity, created_by, status, visibility)
+  values ('jr-cup', 'Join Request Cup', 8, v_owner, 'registration_open', 'invite_only')
+  returning id into v_t;
+
+  -- The tournament is born with a generated code; this replaces it with a
+  -- fixed one so the lookup assertions below can name it.
+  insert into public.tournament_join_codes (tournament_id, code) values (v_t, 'JOIN-TEST')
+    on conflict (tournament_id) do update set code = excluded.code;
+
+  insert into public.tournament_join_requests (tournament_id, user_id, status)
+  values (v_t, v_b, 'pending');
+
+  perform set_config('jr.t', v_t::text, false);
+  perform set_config('jr.owner', v_owner::text, false);
+  perform set_config('jr.a', v_a::text, false);
+  perform set_config('jr.b', v_b::text, false);
+end $$;
+
+set role authenticated;
+select pg_temp.act_as(current_setting('jr.a')::uuid);
+
+do $$
+declare
+  v_n int;
+  v_blocked boolean := false;
+  v_id uuid;
+  v_result jsonb;
+begin
+  -- Another player's request is not visible.
+  select count(*) into v_n from public.tournament_join_requests;
+  assert v_n = 0, 'ACCESS DENIED: a player must not see another player''s join request';
+
+  -- The code is discoverable by code, and the lookup never returns the code.
+  v_result := public.find_tournament_by_code('jointest');
+  assert v_result->>'ok' = 'true', 'a valid code must resolve regardless of spacing or case';
+  assert v_result->>'name' = 'Join Request Cup', 'the lookup must name the tournament';
+  assert not (v_result ? 'join_code') and not (v_result ? 'code'),
+    'the lookup must never hand back the code itself';
+
+  assert public.find_tournament_by_code('ZZZZ-ZZZZ')->>'error' = 'CODE_NOT_FOUND',
+    'an unknown code must be reported as unknown';
+
+  -- An outsider cannot read the tournament row itself, which is why the seat
+  -- count is checked from outside this block.
+  assert not exists (select 1 from public.tournaments
+                      where id = current_setting('jr.t')::uuid),
+    'ACCESS DENIED: an invite-only tournament must stay hidden from a non-member';
+
+  insert into public.tournament_join_requests (tournament_id, user_id)
+  values (current_setting('jr.t')::uuid, current_setting('jr.a')::uuid)
+  returning id into v_id;
+
+  -- Having asked, the name becomes readable: a list of pending requests that
+  -- cannot name what was asked for is not a list the player can act on.
+  assert (select name from public.tournaments where id = current_setting('jr.t')::uuid)
+         = 'Join Request Cup',
+    'a requester must be able to read the name of the tournament they asked to join';
+
+  -- Requesting on somebody else's behalf fails.
+  begin
+    insert into public.tournament_join_requests (tournament_id, user_id)
+    values (current_setting('jr.t')::uuid, current_setting('jr.b')::uuid);
+  exception when others then v_blocked := true; end;
+  assert v_blocked, 'ACCESS DENIED: a player must not request on another player''s behalf';
+
+  -- Approving your own request is not a thing a player can do. The row passes
+  -- the policy's USING clause (it is theirs, and pending) and fails its WITH
+  -- CHECK, so this raises rather than quietly touching nothing.
+  v_blocked := false;
+  begin
+    update public.tournament_join_requests
+       set status = 'approved', decided_at = now()
+     where id = v_id;
+    get diagnostics v_n = row_count;
+    v_blocked := v_n = 0;
+  exception when others then v_blocked := true; end;
+  assert v_blocked, 'ACCESS DENIED: a player must not approve their own request';
+
+  assert public.approve_join_request(v_id)->>'error' = 'FORBIDDEN',
+    'ACCESS DENIED: the approval function must refuse a non-organiser';
+
+  -- Withdrawing is allowed, and is the only state a player may write.
+  update public.tournament_join_requests set status = 'cancelled' where id = v_id;
+  get diagnostics v_n = row_count;
+  assert v_n = 1, 'a player must be able to withdraw a pending request';
+
+  perform set_config('jr.request_a', v_id::text, false);
+  raise notice 'OK  a request is yours to make and withdraw, and nobody else''s to see';
+end $$;
+
+-- Two requests are outstanding and the roster is still empty: asking is not
+-- joining, and eight hopefuls cannot fill an eight-player tournament.
+reset role;
+do $$
+declare v_count int; v_requests int;
+begin
+  select player_count into v_count from public.tournaments
+   where id = current_setting('jr.t')::uuid;
+  select count(*) into v_requests from public.tournament_join_requests
+   where tournament_id = current_setting('jr.t')::uuid;
+
+  assert v_count = 0, format('a pending request must not occupy a slot, count is %s', v_count);
+  assert v_requests = 2, format('two requests should exist, found %s', v_requests);
+  raise notice 'OK  pending requests take no seats';
+end $$;
+
+set role authenticated;
+
+-- The organiser answers it, and the seat is taken only then.
+select pg_temp.act_as(current_setting('jr.owner')::uuid);
+
+do $$
+declare
+  v_n int;
+  v_before int;
+  v_after int;
+  v_request uuid;
+  v_result jsonb;
+begin
+  select count(*) into v_n from public.tournament_join_requests
+   where tournament_id = current_setting('jr.t')::uuid;
+  assert v_n = 2, format('the organiser must see every request, saw %s', v_n);
+
+  select id into v_request from public.tournament_join_requests
+   where tournament_id = current_setting('jr.t')::uuid
+     and user_id = current_setting('jr.b')::uuid;
+
+  select player_count into v_before from public.tournaments
+   where id = current_setting('jr.t')::uuid;
+
+  v_result := public.approve_join_request(v_request);
+  assert v_result->>'ok' = 'true', format('approval should succeed, got %s', v_result);
+
+  select player_count into v_after from public.tournaments
+   where id = current_setting('jr.t')::uuid;
+  assert v_after = v_before + 1, 'approval is what takes the seat';
+
+  assert exists (
+    select 1 from public.tournament_players
+     where tournament_id = current_setting('jr.t')::uuid
+       and user_id = current_setting('jr.b')::uuid
+       and status = 'approved'
+  ), 'approval must produce an approved roster row';
+
+  -- Answering twice changes nothing.
+  assert public.approve_join_request(v_request)->>'error' = 'ALREADY_DECIDED',
+    'a decided request must not be decidable again';
+
+  raise notice 'OK  only the organiser decides, and the seat moves when they do';
+end $$;
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 10. Asking again
+-- ---------------------------------------------------------------------------
+-- A withdrawal and a rejection both leave the row behind, because the unique
+-- constraint keeps one request per player per tournament. So the question is
+-- whether that row can be returned to a clean pending state by the player and
+-- only by the player — and whether an approved one is beyond their reach.
+
+set role authenticated;
+select pg_temp.act_as(current_setting('jr.a')::uuid);
+
+do $$
+declare
+  v_id uuid := current_setting('jr.request_a')::uuid;
+  v_status public.join_request_status;
+  v_cancelled timestamptz;
+begin
+  select status, cancelled_at into v_status, v_cancelled
+    from public.tournament_join_requests where id = v_id;
+  assert v_status = 'cancelled', format('the withdrawn request should be cancelled, is %s', v_status);
+  assert v_cancelled is not null, 'a withdrawal must be stamped';
+
+  -- Asking again after pulling the request back.
+  update public.tournament_join_requests set status = 'pending' where id = v_id;
+
+  select status, cancelled_at into v_status, v_cancelled
+    from public.tournament_join_requests where id = v_id;
+  assert v_status = 'pending', 'a withdrawn request must be re-openable by its owner';
+  assert v_cancelled is null, 'reopening must clear the withdrawal stamp';
+
+  raise notice 'OK  a withdrawn request can be made again';
+end $$;
+
+-- The organiser turns it down with a reason, and the player asks once more.
+select pg_temp.act_as(current_setting('jr.owner')::uuid);
+
+do $$
+declare v_result jsonb;
+begin
+  v_result := public.reject_join_request(current_setting('jr.request_a')::uuid, '  الاسم داخل اللعبة ناقص  ');
+  assert v_result->>'ok' = 'true', format('rejection should succeed, got %s', v_result);
+
+  assert (select decision_note from public.tournament_join_requests
+           where id = current_setting('jr.request_a')::uuid) = 'الاسم داخل اللعبة ناقص',
+    'the note must be trimmed and kept';
+end $$;
+
+select pg_temp.act_as(current_setting('jr.a')::uuid);
+
+do $$
+declare
+  v_id uuid := current_setting('jr.request_a')::uuid;
+  v_status public.join_request_status;
+  v_note text;
+  v_decided timestamptz;
+begin
+  -- The player sees why they were turned down.
+  select decision_note into v_note from public.tournament_join_requests where id = v_id;
+  assert v_note = 'الاسم داخل اللعبة ناقص', 'a player must be able to read the reason';
+
+  -- And may ask again. The old decision does not ride along.
+  update public.tournament_join_requests set status = 'pending' where id = v_id;
+
+  select status, decision_note, decided_at into v_status, v_note, v_decided
+    from public.tournament_join_requests where id = v_id;
+  assert v_status = 'pending', 'a rejected player must be able to ask again';
+  assert v_note is null, 'asking again must clear the old reason';
+  assert v_decided is null, 'asking again must clear the old decision';
+
+  -- What they may never do is decide for themselves.
+  begin
+    update public.tournament_join_requests set status = 'approved' where id = v_id;
+    raise exception 'a player approved their own request';
+  exception
+    when insufficient_privilege or check_violation then null;
+  end;
+
+  raise notice 'OK  a rejection is not a wall, and approval is not the player''s to write';
+end $$;
+
+-- Once accepted, the row is a record rather than a request.
+select pg_temp.act_as(current_setting('jr.owner')::uuid);
+
+do $$
+declare v_result jsonb;
+begin
+  v_result := public.approve_join_request(current_setting('jr.request_a')::uuid);
+  assert v_result->>'ok' = 'true', format('the second ask should be approvable, got %s', v_result);
+end $$;
+
+select pg_temp.act_as(current_setting('jr.a')::uuid);
+
+do $$
+declare v_n int;
+begin
+  update public.tournament_join_requests set status = 'pending'
+   where id = current_setting('jr.request_a')::uuid;
+  get diagnostics v_n = row_count;
+  assert v_n = 0, 'an approved request must not be reopened by the player';
+
+  raise notice 'OK  an approved request is out of the player''s hands';
+end $$;
+
+reset role;

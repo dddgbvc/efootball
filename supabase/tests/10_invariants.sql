@@ -468,13 +468,30 @@ begin
   raise notice 'OK  privilege escalation and foreign profile edits are blocked';
 end $$;
 
--- 5e. Invite tokens are not readable by players.
+-- 5e. A join code belongs to the organiser, not to the roster.
+reset role;
+insert into public.tournament_join_codes (tournament_id, code)
+values (current_setting('efootball.test_t')::uuid, 'SEEN-ONCE')
+on conflict (tournament_id) do update set code = excluded.code;
+
+set role authenticated;
+select pg_temp.act_as(current_setting('efootball.test_p1')::uuid);
+
 do $$
 declare v_count int;
 begin
-  select count(*) into v_count from public.tournament_invites;
-  assert v_count = 0, 'invite tokens must never be readable by a player';
-  raise notice 'OK  invite secrets are invisible to players';
+  -- p1 is a participant in this tournament and can read its row. The code that
+  -- admits new people is still not theirs to read, let alone to pass on.
+  select count(*) into v_count from public.tournament_join_codes
+   where tournament_id = current_setting('efootball.test_t')::uuid;
+  assert v_count = 0,
+    'ACCESS DENIED: a participant must not be able to read the tournament join code';
+
+  assert exists (select 1 from public.tournaments
+                  where id = current_setting('efootball.test_t')::uuid),
+    'the participant should still see the tournament itself';
+
+  raise notice 'OK  the join code is organiser-only, even inside the tournament';
 end $$;
 
 -- 5f. Direct messages are visible only to their two participants.

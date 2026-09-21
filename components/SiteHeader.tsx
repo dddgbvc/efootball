@@ -67,13 +67,21 @@ export async function SiteHeader() {
           ))}
         </nav>
 
-        <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          style={{
+            marginInlineStart: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            flexShrink: 0,
+          }}
+        >
           {user ? (
             <>
               <NotificationBell />
               <Link
                 href="/dashboard/profile"
-                className="site-nav-link"
+                className="site-nav-link site-header-account"
                 style={{ fontSize: 14, fontWeight: 700 }}
               >
                 {displayName ?? 'حسابي'}

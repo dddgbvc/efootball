@@ -80,19 +80,10 @@ export function RulesSheet({
   return (
     <div className="panel" style={{ overflow: 'hidden' }}>
       <dl style={{ margin: 0 }}>
-        {rows.map(([term, value], index) => (
-          <div
-            key={term}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(140px, 240px) 1fr',
-              gap: 16,
-              padding: '14px 18px',
-              borderBottom: index === rows.length - 1 ? 'none' : '1px solid var(--line)',
-            }}
-          >
-            <dt style={{ color: 'var(--text-muted)', fontSize: 14 }}>{term}</dt>
-            <dd style={{ margin: 0, fontWeight: 600 }}>{value}</dd>
+        {rows.map(([term, value]) => (
+          <div key={term} className="fact-row">
+            <dt>{term}</dt>
+            <dd>{value}</dd>
           </div>
         ))}
       </dl>

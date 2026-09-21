@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { loadPlayerContext } from '@/lib/player/context';
 import { PlayerNav } from '@/components/player/PlayerNav';
+import { JoinPrompt } from '@/components/player/JoinPrompt';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,19 +21,31 @@ export default async function PlayerLayout({ children }: { children: React.React
 
   if (!result.ok) {
     if (result.reason === 'unauthenticated') redirect('/login?next=/player');
+    /*
+     * No tournament yet — so this screen is the join screen.
+     *
+     * Announcing "you are not in a tournament" and leaving it there is a dead
+     * end: the person already knows, and what they need is the field their
+     * code goes into. It is here rather than behind a link because a player
+     * holding a code is one step from being a participant, and every screen
+     * between the two is a place to give up.
+     */
     return (
       <div className="shell" style={{ paddingBlock: '56px 96px', maxWidth: 560 }}>
-        <div className="panel strip" style={{ padding: '28px 22px 30px' }}>
+        <div className="panel strip" style={{ padding: '28px 22px 24px', marginBlockEnd: 16 }}>
           <div className="eyebrow">بوابة اللاعب</div>
-          <h1 style={{ fontSize: 24, marginBlock: '10px 12px' }}>لست مشاركاً في أي بطولة</h1>
-          <p style={{ color: 'var(--text-muted)', margin: '0 0 20px' }}>
-            تُفتح بوابة اللاعب عبر رابط دعوة يرسله منظّم البطولة. إن كان معك رابط، افتحه
-            لإكمال الانضمام.
+          <h1 style={{ fontSize: 24, marginBlock: '10px 12px' }}>انضم بكود البطولة</h1>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+            يرسل لك منظّم البطولة كوداً من ثمانية أحرف. أدخله هنا فيصله طلبك، وتُفتح البوابة
+            بمجرد قبوله.
           </p>
-          <Link href="/tournaments" className="btn">
-            تصفح البطولات العامة
-          </Link>
         </div>
+
+        <JoinPrompt />
+
+        <Link href="/tournaments" className="btn" style={{ width: '100%', marginBlockStart: 16 }}>
+          تصفح البطولات العامة
+        </Link>
       </div>
     );
   }

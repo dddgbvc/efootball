@@ -5,7 +5,7 @@ import { createServerSupabase, getCurrentUser } from '@/lib/supabase/server';
 const SECTIONS = [
   ['', 'لوحة التحكم'],
   ['players', 'اللاعبون'],
-  ['invites', 'الدعوات'],
+  ['requests', 'الطلبات'],
   ['check-in', 'الحضور'],
   ['matches', 'المباريات'],
   ['disputes', 'النزاعات'],

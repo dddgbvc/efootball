@@ -42,6 +42,18 @@ export function handleRouteError(error: unknown) {
   }
 
   console.error('[route-error]', error);
+
+  // The one internal failure worth naming: the server could not reach the
+  // database to check who the caller is. Left generic, it reads as "something
+  // broke"; named, it points straight at the missing service-role key.
+  if (error instanceof Error && error.message.startsWith('PERMISSION_LOOKUP_FAILED')) {
+    return fail(
+      'PERMISSION_LOOKUP_FAILED',
+      'تعذّر التحقق من صلاحيتك — إعداد الخادم ناقص. راجع SUPABASE_SERVICE_ROLE_KEY.',
+      500,
+    );
+  }
+
   return fail('INTERNAL_ERROR', 'حدث خطأ غير متوقع', 500);
 }
 

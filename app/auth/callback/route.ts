@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
  * Email-confirmation landing.
  *
  * Exchanges the code for a session and then returns the player to exactly where
- * they were — including an invite link — so invitation state is never lost.
+ * they were, so nothing about where they were headed is lost on the way.
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);

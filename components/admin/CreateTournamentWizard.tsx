@@ -46,7 +46,6 @@ export function CreateTournamentWizard({ presets, appUrl }: { presets: PresetVie
     visibility: 'invite_only' as 'public' | 'invite_only',
     platform: '' as string,
     prizeInfo: '',
-    autoApprove: true,
     waitlistEnabled: false,
     aiNewsEnabled: true,
     aiNewsMode: 'review_first' as 'review_first' | 'automatic',
@@ -113,7 +112,6 @@ export function CreateTournamentWizard({ presets, appUrl }: { presets: PresetVie
           visibility: form.visibility,
           platform: form.platform || null,
           prizeInfo: form.prizeInfo.trim() || null,
-          autoApprove: form.autoApprove,
           waitlistEnabled: form.waitlistEnabled,
           aiNewsEnabled: form.aiNewsEnabled,
           aiNewsMode: form.aiNewsMode,
@@ -220,15 +218,19 @@ export function CreateTournamentWizard({ presets, appUrl }: { presets: PresetVie
               onChange={(v) => set('slug', slugify(v))}
               ltr
             />
-            <div
-              dir="ltr"
-              style={{
-                fontSize: 12,
-                color: 'var(--text-muted)',
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {fullTournamentUrl(appUrl, form.slug || 'your-tournament')}
+            {/* The address of the public page, which is not how anyone joins:
+                players enter a code the organiser sends them. Saying so here
+                stops this from being copied and sent as an invitation, which
+                lands on a 404 for every tournament that is still a draft or
+                invite-only. */}
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <span>صفحة البطولة العامة:</span>{' '}
+              <span dir="ltr" style={{ overflowWrap: 'anywhere' }}>
+                {fullTournamentUrl(appUrl, form.slug || 'your-tournament')}
+              </span>
+              <div style={{ marginBlockStart: 4 }}>
+                الانضمام لا يتم عبر هذا الرابط — بعد الإنشاء يظهر لك كود البطولة لترسله للاعبين.
+              </div>
             </div>
             <label style={{ display: 'grid', gap: 6 }}>
               <span style={labelStyle}>الوصف</span>
@@ -461,12 +463,11 @@ export function CreateTournamentWizard({ presets, appUrl }: { presets: PresetVie
                 value={form.visibility}
                 onChange={(e) => set('visibility', e.target.value as 'public' | 'invite_only')}
               >
-                <option value="invite_only">بالدعوة فقط</option>
+                <option value="invite_only">خاصة — بالكود فقط</option>
                 <option value="public">عامة</option>
               </select>
             </label>
 
-            <Check label="اعتماد اللاعبين تلقائياً" checked={form.autoApprove} onChange={(v) => set('autoApprove', v)} />
             <Check label="تفعيل قائمة الانتظار" checked={form.waitlistEnabled} onChange={(v) => set('waitlistEnabled', v)} />
 
             <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
@@ -515,19 +516,10 @@ export function CreateTournamentWizard({ presets, appUrl }: { presets: PresetVie
           <div>
             <h2 style={{ fontSize: 18, marginBlockEnd: 14 }}>المراجعة النهائية</h2>
             <dl style={{ margin: 0 }}>
-              {review(form, appUrl).map(([term, value], index, all) => (
-                <div
-                  key={term}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(150px, 240px) 1fr',
-                    gap: 16,
-                    padding: '10px 0',
-                    borderBottom: index === all.length - 1 ? 'none' : '1px solid var(--line)',
-                  }}
-                >
-                  <dt style={{ color: 'var(--text-muted)', fontSize: 14 }}>{term}</dt>
-                  <dd style={{ margin: 0, fontWeight: 600 }}>{value}</dd>
+              {review(form, appUrl).map(([term, value]) => (
+                <div key={term} className="fact-row" style={{ paddingInline: 0 }}>
+                  <dt>{term}</dt>
+                  <dd>{value}</dd>
                 </div>
               ))}
             </dl>
@@ -695,7 +687,6 @@ function review(form: {
   knockoutPenalties: boolean;
   awayGoalsRule: boolean;
   semifinalDrawMode: string;
-  autoApprove: boolean;
   aiNewsEnabled: boolean;
   aiNewsMode: string;
   telegramEnabled: boolean;
@@ -703,10 +694,10 @@ function review(form: {
   const playoffEnd = form.directSemifinalSlots + form.playoffSlots;
   return [
     ['الاسم', form.name || '—'],
-    ['الرابط', fullTournamentUrl(appUrl, form.slug || '—')],
+    ['صفحة البطولة', fullTournamentUrl(appUrl, form.slug || '—')],
     ['عدد اللاعبين', String(form.capacity)],
     ['النظام', form.preset],
-    ['الظهور', form.visibility === 'public' ? 'عامة' : 'بالدعوة فقط'],
+    ['الظهور', form.visibility === 'public' ? 'عامة' : 'خاصة — بالكود فقط'],
     ['مدة المباراة', `${form.matchDurationMinutes} دقيقة`],
     ['الدوري', form.leagueDoubleRound ? 'ذهاب وإياب' : 'مباراة واحدة'],
     ['النقاط', `${form.pointsWin} / ${form.pointsDraw} / ${form.pointsLoss}`],
@@ -725,7 +716,6 @@ function review(form: {
     ['ركلات الترجيح', form.knockoutPenalties ? 'نعم' : 'لا'],
     ['الهدف خارج الأرض', form.awayGoalsRule ? 'نعم' : 'لا'],
     ['قرعة نصف النهائي', form.semifinalDrawMode === 'seeded' ? 'مصنّفة' : 'مفتوحة'],
-    ['اعتماد تلقائي', form.autoApprove ? 'نعم' : 'لا'],
     [
       'الأخبار',
       form.aiNewsEnabled

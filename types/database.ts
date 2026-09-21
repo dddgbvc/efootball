@@ -192,7 +192,6 @@ export type TournamentPlayerRow = {
   checked_in_at: string | null;
   removed_at: string | null;
   removal_reason: string | null;
-  invite_id: string | null;
   public_status: string | null;
   public_note: string | null;
   status_updated_by: string | null;
@@ -207,24 +206,6 @@ export type TournamentAdminRow = {
   created_at: string;
 }
 
-export type TournamentInviteRow = {
-  id: string;
-  tournament_id: string;
-  label: string | null;
-  token: string;
-  code: string;
-  max_uses: number | null;
-  used_count: number;
-  auto_approve: boolean;
-  expires_at: string | null;
-  revoked_at: string | null;
-  created_by: string;
-  created_at: string;
-  opened_at: string | null;
-  claimed_by: string | null;
-  claimed_at: string | null;
-}
-
 export type TournamentRuleAcceptanceRow = {
   id: string;
   tournament_id: string;
@@ -233,6 +214,28 @@ export type TournamentRuleAcceptanceRow = {
   accepted: boolean;
   accepted_at: string | null;
   declined_at: string | null;
+  created_at: string;
+}
+
+export type JoinRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export type TournamentJoinCodeRow = {
+  tournament_id: string;
+  code: string;
+  rotated_by: string | null;
+  rotated_at: string;
+}
+
+export type TournamentJoinRequestRow = {
+  id: string;
+  tournament_id: string;
+  user_id: string;
+  status: JoinRequestStatus;
+  message: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  cancelled_at: string | null;
   created_at: string;
 }
 
@@ -605,17 +608,9 @@ export type Database = {
       tournament_admins: Table<TournamentAdminRow, 'tournament_id' | 'user_id'>;
       tournament_rules: Table<TournamentRulesRow, 'tournament_id'>;
       tournament_players: Table<TournamentPlayerRow, 'tournament_id' | 'user_id'>;
-      tournament_invites: Table<
-        TournamentInviteRow,
-        'tournament_id' | 'token' | 'code' | 'created_by'
-      >;
       tournament_waitlist: Table<
         { id: string; tournament_id: string; user_id: string; position: number; created_at: string; promoted_at: string | null },
         'tournament_id' | 'user_id' | 'position'
-      >;
-      invite_redemptions: Table<
-        { id: string; invite_id: string; user_id: string; redeemed_at: string },
-        'invite_id' | 'user_id'
       >;
       league_rounds: Table<LeagueRoundRow, 'tournament_id' | 'round_number' | 'leg'>;
       knockout_ties: Table<KnockoutTieRow, 'tournament_id' | 'stage' | 'position'>;
@@ -683,6 +678,8 @@ export type Database = {
         'tournament_id' | 'user_id' | 'rules_version' | 'accepted'
       >;
       player_admin_notes: Table<PlayerAdminNoteRow, 'tournament_id' | 'user_id' | 'note'>;
+      tournament_join_codes: Table<TournamentJoinCodeRow, 'tournament_id' | 'code'>;
+      tournament_join_requests: Table<TournamentJoinRequestRow, 'tournament_id' | 'user_id'>;
       push_subscriptions: Table<
         PushSubscriptionRow,
         'user_id' | 'endpoint' | 'p256dh' | 'auth_secret'
@@ -690,10 +687,6 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      join_tournament: {
-        Args: { p_tournament_id: string; p_invite_token?: string | null };
-        Returns: Json;
-      };
       check_in_tournament: {
         Args: { p_tournament_id: string };
         Returns: Json;
@@ -728,6 +721,22 @@ export type Database = {
       tournament_match_totals: {
         Args: { p_tournament: string };
         Returns: { total: number; verified: number }[];
+      };
+      find_tournament_by_code: {
+        Args: { p_code: string };
+        Returns: Json;
+      };
+      approve_join_request: {
+        Args: { p_request_id: string };
+        Returns: Json;
+      };
+      reject_join_request: {
+        Args: { p_request_id: string; p_note?: string | null };
+        Returns: Json;
+      };
+      rotate_join_code: {
+        Args: { p_tournament_id: string };
+        Returns: Json;
       };
     };
     Enums: Record<string, never>;

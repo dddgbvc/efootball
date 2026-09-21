@@ -59,6 +59,13 @@ export default async function PlayerProfilePage() {
       <Link href="/player/rules" className="btn" style={{ marginBlockStart: 12, width: '100%' }}>
         قوانين البطولة
       </Link>
+
+      {/* A player can be in more than one tournament, and the only way in is a
+          code. The bottom bar has no room for a sixth item, so the door lives
+          here rather than nowhere. */}
+      <Link href="/player/join" className="btn" style={{ marginBlockStart: 8, width: '100%' }}>
+        الانضمام إلى بطولة أخرى
+      </Link>
     </div>
   );
 }

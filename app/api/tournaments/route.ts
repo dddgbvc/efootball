@@ -45,7 +45,6 @@ export async function POST(request: Request) {
         platform: input.platform ?? null,
         prize_info: input.prizeInfo ?? null,
         allowed_teams: input.allowedTeams ?? null,
-        auto_approve: input.autoApprove,
         waitlist_enabled: input.waitlistEnabled,
         ai_news_enabled: input.aiNewsEnabled,
         ai_news_mode: input.aiNewsMode,
