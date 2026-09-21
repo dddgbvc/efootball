@@ -1,0 +1,67 @@
+name: Diagnose Production
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_TEAM_ID: team_7MDUX8Yd8QpiBAw83XjPg3SN
+  VERCEL_PROJECT_ID: prj_DukX0C4oC0HhzDzvVOzeXu5ZhGUI
+  PROD_URL: https://efootball-iota.vercel.app
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe production root
+        shell: bash
+        run: |
+          set +e
+          curl -sS -L -D /tmp/root.headers -o /tmp/root.body "$PROD_URL/"
+          echo "=== ROOT HEADERS ==="
+          cat /tmp/root.headers
+          echo "=== ROOT BODY ==="
+          head -c 8000 /tmp/root.body
+          echo
+
+      - name: Probe tournament route
+        shell: bash
+        run: |
+          set +e
+          curl -sS -L -D /tmp/t.headers -o /tmp/t.body "$PROD_URL/tournaments/testtt"
+          echo "=== TOURNAMENT HEADERS ==="
+          cat /tmp/t.headers
+          echo "=== TOURNAMENT BODY ==="
+          head -c 8000 /tmp/t.body
+          echo
+
+      - name: Resolve latest production deployment
+        id: dep
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -e
+          curl -sS             -H "Authorization: Bearer $VERCEL_TOKEN"             "https://api.vercel.com/v13/deployments?projectId=$VERCEL_PROJECT_ID&target=production&limit=1&teamId=$VERCEL_TEAM_ID"             -o /tmp/deployments.json
+          cat /tmp/deployments.json
+          DEPLOYMENT_ID="$(jq -r '.deployments[0].uid // .deployments[0].id // empty' /tmp/deployments.json)"
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "No deployment id found"
+            exit 1
+          fi
+          echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch recent runtime events
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set +e
+          timeout 8s curl -sS             -H "Authorization: Bearer $VERCEL_TOKEN"             "https://api.vercel.com/v3/deployments/${{ steps.dep.outputs.deployment_id }}/events?teamId=$VERCEL_TEAM_ID"             | head -c 30000
+          echo
