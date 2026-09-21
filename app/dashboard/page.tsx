@@ -115,6 +115,10 @@ export default async function DashboardPage() {
         {!tournaments || tournaments.length === 0 ? (
           <div className="panel" style={{ padding: 28, color: 'var(--text-muted)' }}>
             لم تنضم إلى أي بطولة بعد.{' '}
+            <Link href="/player/join" style={{ color: 'var(--accent)' }}>
+              انضم بكود
+            </Link>
+            {' '}أو{' '}
             <Link href="/tournaments" style={{ color: 'var(--accent)' }}>
               تصفح البطولات
             </Link>{' '}

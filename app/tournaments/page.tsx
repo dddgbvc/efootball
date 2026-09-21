@@ -1,14 +1,18 @@
 import Link from 'next/link';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { createServerSupabase, getCurrentUser } from '@/lib/supabase/server';
 import { STATUS_LABELS_AR } from '@/lib/tournament/lifecycle';
 import type { TournamentStatus } from '@/lib/tournament/types';
 import { EmptyState } from '@/components/StandingsTable';
+import { JoinByCode } from '@/components/player/JoinByCode';
 
 export const metadata = { title: 'البطولات' };
-export const revalidate = 20;
+// The page now shows the join panel to whoever is signed in, so it is rendered
+// per request rather than cached for twenty seconds and served to everybody.
+export const dynamic = 'force-dynamic';
 
 export default async function TournamentsPage() {
   const supabase = await createServerSupabase();
+  const user = await getCurrentUser();
   const { data } = await supabase
     .from('tournaments')
     .select('id, slug, name, description, status, capacity, player_count, accent_color, starts_at')
@@ -20,10 +24,43 @@ export default async function TournamentsPage() {
   return (
     <div className="shell" style={{ paddingBlock: '40px 72px' }}>
       <div className="eyebrow">الأرشيف</div>
-      <h1 style={{ fontSize: 34, marginBlock: '10px 28px' }}>البطولات</h1>
+      <h1 style={{ fontSize: 34, marginBlock: '10px 22px' }}>البطولات</h1>
+
+      {/*
+        The way in, at the top of the page people open when they are looking
+        for a tournament. Only public ones are listed below, so for everybody
+        holding a code this panel *is* the page: sending them to find the
+        field somewhere else is a step that loses people.
+      */}
+      <section style={{ marginBlockEnd: 28 }}>
+        {user ? (
+          <>
+            <div className="eyebrow">معك كود بطولة؟</div>
+            <h2 style={{ fontSize: 20, marginBlock: '8px 6px' }}>انضم بكود البطولة</h2>
+            <p style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--text-muted)' }}>
+              أدخل الكود الذي أرسله لك منظّم البطولة، فيصله طلبك ويقرّر.
+            </p>
+            <JoinByCode />
+          </>
+        ) : (
+          <div className="panel strip" style={{ padding: '20px 22px 22px' }}>
+            <div className="eyebrow">معك كود بطولة؟</div>
+            <h2 style={{ fontSize: 20, marginBlock: '8px 8px' }}>انضم بكود البطولة</h2>
+            <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--text-muted)' }}>
+              يرسل لك منظّم البطولة كوداً من ثمانية أحرف. سجّل دخولك ثم أدخله، فيصله طلبك.
+            </p>
+            <Link href="/login?next=/player/join" className="btn btn-primary">
+              سجّل دخولك للانضمام بالكود
+            </Link>
+          </div>
+        )}
+      </section>
 
       {tournaments.length === 0 ? (
-        <EmptyState>لا توجد بطولات متاحة لك حالياً.</EmptyState>
+        <EmptyState>
+          لا توجد بطولات عامة معروضة. البطولات الخاصة لا تظهر هنا — يدخلها اللاعب بالكود
+          الذي يرسله له منظّمها.
+        </EmptyState>
       ) : (
         <ul
           data-stagger
