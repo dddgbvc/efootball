@@ -16,12 +16,21 @@ export default async function DashboardPage() {
 
   const supabase = await createServerSupabase();
 
-  const { data: memberships } = await supabase
-    .from('tournament_players')
-    .select('tournament_id, status, checked_in_at')
-    .eq('user_id', user.id);
+  // A tournament reaches this page two ways: the player joined it, or they
+  // organize it. Listing only the first hid every tournament an organizer
+  // created from the very page they land on afterwards.
+  const [{ data: memberships }, { data: organizerRows }] = await Promise.all([
+    supabase
+      .from('tournament_players')
+      .select('tournament_id, status, checked_in_at')
+      .eq('user_id', user.id),
+    supabase.from('tournament_admins').select('tournament_id').eq('user_id', user.id),
+  ]);
 
-  const tournamentIds = (memberships ?? []).map((m) => m.tournament_id);
+  const organizedIds = new Set((organizerRows ?? []).map((r) => r.tournament_id));
+  const tournamentIds = [
+    ...new Set([...(memberships ?? []).map((m) => m.tournament_id), ...organizedIds]),
+  ];
 
   const [{ data: tournaments }, { data: matches }, { data: unreadNotifications }] =
     await Promise.all([
@@ -108,7 +117,12 @@ export default async function DashboardPage() {
             لم تنضم إلى أي بطولة بعد.{' '}
             <Link href="/tournaments" style={{ color: 'var(--accent)' }}>
               تصفح البطولات
+            </Link>{' '}
+            أو{' '}
+            <Link href="/admin/tournaments/new" style={{ color: 'var(--accent)' }}>
+              أنشئ بطولتك
             </Link>
+            .
           </div>
         ) : (
           <ul
@@ -124,6 +138,7 @@ export default async function DashboardPage() {
             {tournaments.map((t) => {
               const membership = memberships?.find((m) => m.tournament_id === t.id);
               const needsCheckIn = t.status === 'check_in' && !membership?.checked_in_at;
+              const organizes = organizedIds.has(t.id);
 
               return (
                 <li key={t.id} className="panel" style={{ padding: 18 }}>
@@ -139,8 +154,18 @@ export default async function DashboardPage() {
                     <span className="tag numeric">
                       {t.player_count} / {t.capacity}
                     </span>
+                    {organizes ? (
+                      <span className="tag" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+                        تديرها
+                      </span>
+                    ) : null}
                     {membership?.checked_in_at ? <span className="tag">حاضر ✓</span> : null}
                   </div>
+                  {organizes ? (
+                    <Link href={`/admin/tournaments/${t.id}`} className="btn" style={{ minHeight: 34 }}>
+                      إدارة البطولة
+                    </Link>
+                  ) : null}
                   {needsCheckIn ? <CheckInButton tournamentId={t.id} /> : null}
                 </li>
               );
