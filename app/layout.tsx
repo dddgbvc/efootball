@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SiteHeader } from '@/components/SiteHeader';
+import { PwaRegistrar } from '@/components/PwaRegistrar';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
@@ -14,6 +15,19 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ar_SA',
     siteName: 'منصة بطولات eFootball',
+  },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'eFootball',
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icons/apple-touch-icon.png',
   },
 };
 
@@ -40,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Archivo:wght@600;700;800;900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Archivo:wght@600;700;800;900&display=swap"
         />
       </head>
       <body>
@@ -49,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <SiteHeader />
         <main id="main">{children}</main>
+        <PwaRegistrar />
       </body>
     </html>
   );

@@ -1,5 +1,7 @@
 import { createServerSupabase } from '@/lib/supabase/server';
+import { loadStandings } from '@/lib/tournament/queries';
 import { RosterTable } from '@/components/admin/RosterTable';
+import { PlayerStatusEditor, type PlayerStatusRow } from '@/components/admin/PlayerStatusEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,19 +14,42 @@ export default async function AdminPlayersPage(props: { params: Promise<{ id: st
 
   const { data: players } = await admin
     .from('tournament_players')
-    .select('id, user_id, status, joined_at, checked_in_at, approved_at, removal_reason')
+    .select(
+      'id, user_id, status, joined_at, checked_in_at, approved_at, removal_reason, invite_id, public_status, public_note, status_updated_at',
+    )
     .eq('tournament_id', id)
     .order('joined_at', { ascending: true });
 
   const ids = (players ?? []).map((p) => p.user_id);
-  const { data: profiles } = ids.length
-    ? await admin
-        .from('profiles')
-        .select('id, display_name, efootball_name, platform')
-        .in('id', ids)
-    : { data: [] };
 
-  const rows = (players ?? []).map((p) => {
+  const [
+    { data: profiles },
+    { data: acceptances },
+    { data: privateNotes },
+    { data: invites },
+    { data: rules },
+    bundle,
+  ] = await Promise.all([
+    ids.length
+      ? admin.from('profiles').select('id, display_name, efootball_name, platform').in('id', ids)
+      : Promise.resolve({ data: [] }),
+    admin
+      .from('tournament_rule_acceptances')
+      .select('user_id, accepted, rules_version, created_at')
+      .eq('tournament_id', id)
+      .order('created_at', { ascending: false }),
+    admin.from('player_admin_notes').select('user_id, note').eq('tournament_id', id),
+    admin
+      .from('tournament_invites')
+      .select('id, label, opened_at, claimed_at')
+      .eq('tournament_id', id),
+    admin.from('tournament_rules').select('version').eq('tournament_id', id).maybeSingle(),
+    loadStandings(admin, id),
+  ]);
+
+  const currentVersion = rules?.version ?? 1;
+
+  const rosterRows = (players ?? []).map((p) => {
     const profile = profiles?.find((x) => x.id === p.user_id);
     return {
       id: p.id,
@@ -39,5 +64,51 @@ export default async function AdminPlayersPage(props: { params: Promise<{ id: st
     };
   });
 
-  return <RosterTable tournamentId={id} rows={rows} />;
+  // The decisions arrive newest first, so the first match for a player against
+  // the version in force is the one that counts.
+  const statusRows: PlayerStatusRow[] = (players ?? []).map((p) => {
+    const profile = profiles?.find((x) => x.id === p.user_id);
+    const decision = acceptances?.find(
+      (a) => a.user_id === p.user_id && a.rules_version === currentVersion,
+    );
+    const standing = bundle.standings.find((s) => s.playerId === p.user_id);
+    const invite = p.invite_id ? invites?.find((i) => i.id === p.invite_id) : undefined;
+
+    return {
+      userId: p.user_id,
+      displayName: profile?.display_name ?? '—',
+      publicStatus: p.public_status,
+      publicNote: p.public_note,
+      privateNote: privateNotes?.find((n) => n.user_id === p.user_id)?.note ?? null,
+      statusUpdatedAt: p.status_updated_at,
+      rulesState: decision ? (decision.accepted ? 'accepted' : 'declined') : 'pending',
+      inviteState: invite
+        ? invite.claimed_at
+          ? 'الدعوة: تم التسجيل'
+          : invite.opened_at
+            ? 'الدعوة: تم الفتح'
+            : 'الدعوة: تم الإرسال'
+        : null,
+      played: standing?.played ?? 0,
+      points: standing?.points ?? 0,
+    };
+  });
+
+  return (
+    <div style={{ display: 'grid', gap: 28 }}>
+      <section>
+        <h2 className="eyebrow" style={{ marginBlockEnd: 12 }}>
+          قائمة المشاركين
+        </h2>
+        <RosterTable tournamentId={id} rows={rosterRows} />
+      </section>
+
+      <section>
+        <h2 className="eyebrow" style={{ marginBlockEnd: 12 }}>
+          حالة اللاعبين والدعوات والقوانين
+        </h2>
+        <PlayerStatusEditor tournamentId={id} rows={statusRows} />
+      </section>
+    </div>
+  );
 }

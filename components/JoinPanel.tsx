@@ -13,12 +13,10 @@ import Link from 'next/link';
  */
 export function JoinPanel({
   tournamentId,
-  tournamentSlug,
   inviteToken,
   signedIn,
 }: {
   tournamentId: string;
-  tournamentSlug: string;
   inviteToken: string;
   signedIn: boolean;
 }) {
@@ -66,7 +64,9 @@ export function JoinPanel({
         return;
       }
 
-      router.push(`/tournaments/${tournamentSlug}`);
+      // The invitation leads into the portal, where the rules gate is the
+      // next thing the player meets. The public page is not the destination.
+      router.push('/player/rules');
       router.refresh();
     } catch {
       setError('تعذر الاتصال بالخادم');

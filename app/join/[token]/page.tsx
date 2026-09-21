@@ -21,7 +21,9 @@ async function loadInvite(token: string) {
 
   const { data: invite } = await admin
     .from('tournament_invites')
-    .select('id, tournament_id, max_uses, used_count, expires_at, revoked_at, auto_approve')
+    .select(
+      'id, tournament_id, label, max_uses, used_count, expires_at, revoked_at, auto_approve, opened_at',
+    )
     .eq('token', token)
     .maybeSingle();
 
@@ -49,6 +51,15 @@ async function loadInvite(token: string) {
           : tournament.status !== 'registration_open'
             ? ('closed' as const)
             : ('open' as const);
+
+  // First view of the link is a real event the organiser needs: "sent" and
+  // "opened" are different things to chase up.
+  if (!invite.opened_at) {
+    await admin
+      .from('tournament_invites')
+      .update({ opened_at: new Date().toISOString() })
+      .eq('id', invite.id);
+  }
 
   return { invite, tournament, state };
 }
@@ -111,10 +122,16 @@ export default async function JoinPage(props: { params: Promise<{ token: string 
         aria-hidden
         style={{ height: 4, width: 72, background: tournament.accent_color, marginBlockEnd: 16 }}
       />
-      <div className="eyebrow">دعوة للانضمام</div>
+      <div className="eyebrow">مرحباً بك في البطولة — تمت دعوتك للمشاركة في</div>
       <h1 style={{ fontSize: 'clamp(1.9rem, 5vw, 2.8rem)', marginBlock: '10px 12px' }}>
         {tournament.name}
       </h1>
+      {result.invite.label ? (
+        <p style={{ margin: '0 0 6px', fontSize: 15 }}>
+          <span style={{ color: 'var(--text-muted)' }}>اللاعب: </span>
+          <strong>{result.invite.label}</strong>
+        </p>
+      ) : null}
       {tournament.description ? (
         <p style={{ color: 'var(--text-muted)', maxWidth: 620 }}>{tournament.description}</p>
       ) : null}
@@ -171,7 +188,6 @@ export default async function JoinPage(props: { params: Promise<{ token: string 
       ) : (
         <JoinPanel
           tournamentId={tournament.id}
-          tournamentSlug={tournament.slug}
           inviteToken={token}
           signedIn={Boolean(user)}
         />

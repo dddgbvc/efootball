@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { notifyPlayers } from '@/lib/push/send';
 import { crossVerify, type VerificationReason } from './crossVerify';
 import { getVisionClient } from './vision';
 import type { VisionExtraction } from './schema';
@@ -323,17 +324,21 @@ export async function applyVerifiedResult(args: {
     p_event: `match_verified:${args.matchId}`,
   });
 
-  for (const playerId of [match.player_a, match.player_b]) {
-    await admin.from('notifications').insert({
-      user_id: playerId,
-      tournament_id: args.tournamentId,
+  await notifyPlayers(
+    [match.player_a, match.player_b].map((playerId) => ({
+      userId: playerId,
+      tournamentId: args.tournamentId,
       type: 'match_verified',
       title: 'تم توثيق نتيجة مباراتك',
       body: `${nameOf(match.player_a)} ${args.scoreA} – ${args.scoreB} ${nameOf(match.player_b)}`,
-      link: `/match/${args.matchId}`,
-      event_key: `match_verified:${args.matchId}`,
-    });
-  }
+      link: `/player/matches/${args.matchId}`,
+      eventKey: `match_verified:${args.matchId}`,
+    })),
+  );
+
+  // Verifying this match is what opens the next round for these two players,
+  // so they are told the moment it does rather than discovering it later.
+  await notifyUnlockedRound(args.tournamentId, [match.player_a, match.player_b]);
 
   const event = classifyVerifiedMatch(
     {
@@ -611,4 +616,43 @@ async function openCase(
     reason: reason as never,
     detail: detail as never,
   });
+}
+
+
+/**
+ * Tells a player their next match is reachable.
+ *
+ * The unlock itself is a property of the data — app.player_match_unlocked()
+ * derives it — so this only reports what already became true. It stays quiet
+ * when there is nothing ahead, because "your next round is open" pointing at
+ * an empty schedule is worse than silence.
+ */
+async function notifyUnlockedRound(tournamentId: string, playerIds: string[]) {
+  const admin = createAdminClient();
+
+  for (const playerId of playerIds) {
+    const { data: upcoming } = await admin
+      .from('matches')
+      .select('id, round_number, status')
+      .eq('tournament_id', tournamentId)
+      .or(`player_a.eq.${playerId},player_b.eq.${playerId}`)
+      .not('status', 'in', '("verified","completed","cancelled")')
+      .order('round_number', { ascending: true, nullsFirst: false })
+      .limit(1);
+
+    const next = upcoming?.[0];
+    if (!next) continue;
+
+    await notifyPlayers([
+      {
+        userId: playerId,
+        tournamentId,
+        type: 'round_unlocked',
+        title: 'تم فتح جولتك التالية',
+        body: next.round_number ? `الجولة ${next.round_number} متاحة الآن.` : 'مباراتك التالية متاحة الآن.',
+        link: `/player/matches/${next.id}`,
+        eventKey: `round_unlocked:${next.id}`,
+      },
+    ]);
+  }
 }

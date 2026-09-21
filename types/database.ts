@@ -175,6 +175,8 @@ export type TournamentRulesRow = {
   ai_statistic_tolerance: number;
   extra: Json;
   updated_at: string;
+  version: number;
+  custom_text: string | null;
 }
 
 export type TournamentPlayerRow = {
@@ -191,6 +193,10 @@ export type TournamentPlayerRow = {
   removed_at: string | null;
   removal_reason: string | null;
   invite_id: string | null;
+  public_status: string | null;
+  public_note: string | null;
+  status_updated_by: string | null;
+  status_updated_at: string | null;
 }
 
 export type TournamentAdminRow = {
@@ -214,6 +220,40 @@ export type TournamentInviteRow = {
   revoked_at: string | null;
   created_by: string;
   created_at: string;
+  opened_at: string | null;
+  claimed_by: string | null;
+  claimed_at: string | null;
+}
+
+export type TournamentRuleAcceptanceRow = {
+  id: string;
+  tournament_id: string;
+  user_id: string;
+  rules_version: number;
+  accepted: boolean;
+  accepted_at: string | null;
+  declined_at: string | null;
+  created_at: string;
+}
+
+export type PlayerAdminNoteRow = {
+  tournament_id: string;
+  user_id: string;
+  note: string;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export type PushSubscriptionRow = {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth_secret: string;
+  user_agent: string | null;
+  created_at: string;
+  last_seen_at: string;
+  failed_at: string | null;
 }
 
 export type LeagueRoundRow = {
@@ -638,6 +678,15 @@ export type Database = {
       >;
       audit_logs: Table<AuditLogRow, 'action'>;
       tournament_activity: Table<TournamentActivityRow, 'tournament_id' | 'kind' | 'message'>;
+      tournament_rule_acceptances: Table<
+        TournamentRuleAcceptanceRow,
+        'tournament_id' | 'user_id' | 'rules_version' | 'accepted'
+      >;
+      player_admin_notes: Table<PlayerAdminNoteRow, 'tournament_id' | 'user_id' | 'note'>;
+      push_subscriptions: Table<
+        PushSubscriptionRow,
+        'user_id' | 'endpoint' | 'p256dh' | 'auth_secret'
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -675,6 +724,10 @@ export type Database = {
       post_system_message: {
         Args: { p_tournament_id: string; p_body: string; p_event?: string | null };
         Returns: Json;
+      };
+      tournament_match_totals: {
+        Args: { p_tournament: string };
+        Returns: { total: number; verified: number }[];
       };
     };
     Enums: Record<string, never>;

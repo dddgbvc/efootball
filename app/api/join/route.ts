@@ -86,6 +86,16 @@ export async function POST(request: Request) {
         }),
       );
 
+      // An invite that produced a player is claimed. The organiser's invite
+      // list reads "تم التسجيل" from this, not from a guess.
+      if (input.inviteToken) {
+        await admin
+          .from('tournament_invites')
+          .update({ claimed_by: user!.id, claimed_at: new Date().toISOString() })
+          .eq('token', input.inviteToken)
+          .is('claimed_at', null);
+      }
+
       await admin.rpc('post_system_message', {
         p_tournament_id: input.tournamentId,
         p_body: `👋 انضم ${profile?.display_name ?? 'لاعب'} إلى البطولة (${result.player_count}/${result.capacity})`,

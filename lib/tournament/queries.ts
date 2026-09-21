@@ -128,12 +128,21 @@ export async function loadStandings(
     },
   });
 
+  // A participant can no longer read the fixtures ahead of them, so counting
+  // the rows they can see would report "16 of 16" where the truth is "16 of
+  // 56". The totals come from a definer function that returns two numbers and
+  // discloses nothing else.
+  const { data: totals } = await client.rpc('tournament_match_totals', {
+    p_tournament: tournamentId,
+  });
+  const totalRow = Array.isArray(totals) ? totals[0] : totals;
+
   return {
     standings,
     qualification: splitQualification(standings),
     playersById,
-    verifiedMatches: verified.length,
-    totalMatches: (matches ?? []).length,
+    verifiedMatches: totalRow?.verified ?? verified.length,
+    totalMatches: totalRow?.total ?? (matches ?? []).length,
   };
 }
 
