@@ -34,7 +34,11 @@
 
   --color-amber-signal: #ffb648;
 
-  --font-display: 'Bahij', 'IBM Plex Sans Arabic', 'Noto Kufi Arabic', system-ui, sans-serif;
+  /* Reem Kufi is a geometric Kufi: angular, architectural, unmistakably Arabic
+     — the closest thing in type to the hard furniture of a broadcast lower
+     third. It carries every heading. Plex sets running text, where Kufi would
+     tire the eye. Archivo sets scores and clocks, nothing else. */
+  --font-display: 'Reem Kufi', 'IBM Plex Sans Arabic', 'Noto Kufi Arabic', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', system-ui, sans-serif;
   --font-score: 'Archivo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
 }
@@ -50,6 +54,14 @@
   --accent: #e8ff59;
   --accent-ink: #07090c;
   --rail: 2px;
+
+  /* Depth. A panel is lit from above by a hairline, and sits on the page
+     rather than being drawn onto it. Both are single values so the light
+     theme can invert the relationship rather than override ten rules. */
+  --edge-light: rgba(255, 255, 255, 0.055);
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -18px rgba(0, 0, 0, 0.9);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.55), 0 26px 52px -24px rgba(0, 0, 0, 1);
+  --grain-opacity: 0.12;
   color-scheme: dark;
 }
 
@@ -63,6 +75,10 @@
   --text-muted: #566071;
   --accent: #1d7a4f;
   --accent-ink: #ffffff;
+  --edge-light: rgba(255, 255, 255, 0.9);
+  --shadow-panel: 0 1px 2px rgba(18, 26, 40, 0.06), 0 10px 26px -18px rgba(18, 26, 40, 0.5);
+  --shadow-lift: 0 2px 6px rgba(18, 26, 40, 0.08), 0 22px 44px -22px rgba(18, 26, 40, 0.55);
+  --grain-opacity: 0.07;
   color-scheme: light;
 }
 
@@ -99,6 +115,20 @@ body::before {
   background-size: 96px 96px;
   mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 20%, transparent 78%);
   opacity: 0.55;
+}
+
+/* Film grain. The one thing that separates a screen that looks printed from a
+   screen that looks rendered: a little noise across every flat field so the
+   large dark areas are never mathematically empty. Decorative, inert, and
+   cheap — one inline SVG turbulence, tiled. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 h1,
@@ -142,6 +172,34 @@ table th {
   background: var(--surface-panel);
   border: 1px solid var(--line);
   border-radius: 4px;
+  box-shadow: inset 0 1px 0 var(--edge-light), var(--shadow-panel);
+}
+
+/* A card that is also a destination. The accent rule is the affordance: it
+   runs out to the full width of the card as the pointer arrives, the way a
+   broadcast graphic wipes in. Everything else stays still. */
+.card-link {
+  display: block;
+  transition:
+    border-color 160ms ease,
+    box-shadow 200ms ease,
+    transform 200ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.card-link:hover {
+  border-color: var(--line-strong);
+  box-shadow: inset 0 1px 0 var(--edge-light), var(--shadow-lift);
+  transform: translateY(-2px);
+}
+.card-link .rule {
+  display: block;
+  height: 3px;
+  width: 52px;
+  background: var(--accent);
+  transition: width 260ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.card-link:hover .rule,
+.card-link:focus-visible .rule {
+  width: 100%;
 }
 
 /* The score strip: the signature horizontal rule that runs above every
@@ -372,6 +430,20 @@ tr[data-zone='eliminated'] td:first-child {
 .animate-rise {
   animation: rise-in 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
+
+/* One orchestrated arrival per page rather than a dozen scattered ones: the
+   children of a [data-stagger] block rise in sequence, and the sequence is
+   short enough that nobody waits for it. */
+[data-stagger] > * {
+  animation: rise-in 420ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+[data-stagger] > *:nth-child(1) { animation-delay: 0ms; }
+[data-stagger] > *:nth-child(2) { animation-delay: 60ms; }
+[data-stagger] > *:nth-child(3) { animation-delay: 120ms; }
+[data-stagger] > *:nth-child(4) { animation-delay: 180ms; }
+[data-stagger] > *:nth-child(5) { animation-delay: 240ms; }
+[data-stagger] > *:nth-child(6) { animation-delay: 300ms; }
+[data-stagger] > *:nth-child(n + 7) { animation-delay: 360ms; }
 .animate-score {
   animation: score-flip 340ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -464,4 +536,334 @@ tr[data-zone='eliminated'] td:first-child {
     padding-inline: 12px !important;
     white-space: nowrap;
   }
+}
+
+/* ==========================================================================
+   Broadcast furniture — the pieces that carry the identity
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Header
+   --------------------------------------------------------------------------
+   A broadcast bar, not a website nav: a hairline of accent across the very top
+   of the page, then the title block, then the controls. The active section is
+   marked by a rule under it rather than a filled pill, so the bar stays flat. */
+.site-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 20;
+  border-block-end: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: saturate(150%) blur(10px);
+}
+.site-header::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 2px;
+  background: linear-gradient(
+    to left,
+    var(--accent) 0%,
+    var(--accent) 14%,
+    transparent 14%,
+    transparent 100%
+  );
+}
+
+.site-nav-link {
+  position: relative;
+  padding-block: 6px;
+  color: var(--text-muted);
+  transition: color 140ms ease;
+}
+.site-nav-link::after {
+  content: '';
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: inline-end;
+  transition: transform 200ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.site-nav-link:hover,
+.site-nav-link[aria-current='page'] {
+  color: var(--text);
+}
+.site-nav-link:hover::after,
+.site-nav-link[aria-current='page']::after {
+  transform: scaleX(1);
+}
+
+/* The wordmark's angled block. Cut once here rather than inline in the JSX so
+   the shape is a property of the brand, not of one component. */
+.brand-mark {
+  display: inline-block;
+  width: 11px;
+  height: 24px;
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 68% 100%, 0 100%);
+}
+
+/* --------------------------------------------------------------------------
+   Hero
+   --------------------------------------------------------------------------
+   Asymmetric on purpose: the claim takes the wide column and the scoreboard
+   motif takes the narrow one, so the page opens off-centre the way a match
+   graphic does. It collapses to one column before the motif would crowd. */
+.hero {
+  display: grid;
+  gap: 40px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  padding-block: clamp(32px, 7vw, 76px);
+}
+
+@media (min-width: 1000px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+    gap: 64px;
+  }
+}
+
+.hero-title {
+  font-size: clamp(2.5rem, 7.2vw, 4.75rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  margin-block: 16px 20px;
+}
+
+.hero-lede {
+  font-size: clamp(1rem, 1.6vw, 1.12rem);
+  line-height: 1.75;
+  color: var(--text-muted);
+  max-width: 54ch;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+/* The scoreboard motif: a real score strip built from the same primitives the
+   product uses for live matches, so the hero shows the thing itself rather
+   than an illustration of it. */
+.scorecard {
+  position: relative;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 var(--edge-light), var(--shadow-lift);
+  overflow: hidden;
+}
+.scorecard::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 3px;
+  background: var(--accent);
+}
+.scorecard-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 26px 20px 22px;
+}
+/* The two figures keep the reading direction of the page: the host sits on the
+   right of the strip, so the host's goals are the rightmost number. Each digit
+   is its own inline box, which is what stops the bidi algorithm from taking
+   the pair apart. */
+.scorecard-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--font-score);
+  font-weight: 900;
+  font-size: clamp(2.6rem, 6vw, 3.6rem);
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.scorecard-score .sep {
+  opacity: 0.32;
+  font-weight: 600;
+}
+.scorecard-side {
+  min-width: 0;
+  font-weight: 700;
+  font-size: 15px;
+}
+.scorecard-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 16px;
+  border-block-start: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-panel) 70%, transparent);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* A verification light that actually reads as live. */
+.pulse-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-pitch-400);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-pitch-400) 70%, transparent);
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-pitch-400) 65%, transparent); }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* --------------------------------------------------------------------------
+   Figure strip — the numbers that establish scale at a glance
+   -------------------------------------------------------------------------- */
+.figure-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-panel);
+  box-shadow: inset 0 1px 0 var(--edge-light), var(--shadow-panel);
+  overflow: hidden;
+}
+.figure-cell {
+  padding: 18px 18px 20px;
+  border-inline-start: 1px solid var(--line);
+}
+.figure-cell:first-child {
+  border-inline-start: none;
+}
+.figure-value {
+  font-family: var(--font-score);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  margin-block-start: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Numbered steps joined by a single rule, the way a run of play is drawn
+   -------------------------------------------------------------------------- */
+.step-rail {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--edge-light), var(--shadow-panel);
+}
+.step-cell {
+  position: relative;
+  padding: 22px 20px 24px;
+  background: var(--surface-panel);
+}
+.step-index {
+  font-family: var(--font-score);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Section heading with its own rule
+   -------------------------------------------------------------------------- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-block-end: 18px;
+}
+.section-head h2 {
+  font-size: clamp(1.25rem, 2.6vw, 1.6rem);
+  letter-spacing: -0.02em;
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars — thin, and part of the furniture rather than the OS
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 99px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Reading a long table
+   --------------------------------------------------------------------------
+   Eight rows of eleven columns is a lot of horizontal travel for one eye. The
+   row under the pointer lifts out of the field just enough to hold the line,
+   and the qualification inset on the first cell stays visible through it. */
+.standings tbody tr:not(.zone-divider):hover td {
+  background: color-mix(in srgb, var(--line) 34%, transparent);
+}
+
+/* --------------------------------------------------------------------------
+   Section tabs — the same underline the header uses, so one idea covers both
+   -------------------------------------------------------------------------- */
+.tab-link {
+  position: relative;
+  padding: 11px 15px;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: color 140ms ease;
+}
+.tab-link::after {
+  content: '';
+  position: absolute;
+  inset-block-end: -1px;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: inline-end;
+  transition: transform 220ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.tab-link:hover {
+  color: var(--text);
+}
+.tab-link[aria-current='page'] {
+  color: var(--text);
+  font-weight: 700;
+}
+.tab-link:hover::after,
+.tab-link[aria-current='page']::after {
+  transform: scaleX(1);
 }

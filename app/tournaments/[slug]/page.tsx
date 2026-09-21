@@ -133,15 +133,7 @@ export default async function TournamentPage(props: {
             key={id}
             href={`/tournaments/${slug}?tab=${id}`}
             aria-current={tab === id ? 'page' : undefined}
-            style={{
-              padding: '10px 14px',
-              whiteSpace: 'nowrap',
-              fontSize: 14,
-              fontWeight: tab === id ? 700 : 500,
-              color: tab === id ? 'var(--text)' : 'var(--text-muted)',
-              borderBottom: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}`,
-              marginBottom: -1,
-            }}
+            className="tab-link"
           >
             {label}
           </Link>

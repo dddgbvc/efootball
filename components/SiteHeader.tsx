@@ -1,7 +1,16 @@
 import Link from 'next/link';
-import { getCurrentUser } from '@/lib/supabase/server';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { getCurrentUser, createServerSupabase } from '@/lib/supabase/server';
 import { NotificationBell } from './NotificationBell';
+
+const NAV_PUBLIC: Array<[href: string, label: string]> = [
+  ['/tournaments', 'البطولات'],
+  ['/news', 'الأخبار'],
+];
+
+const NAV_SIGNED_IN: Array<[href: string, label: string]> = [
+  ['/dashboard', 'لوحتي'],
+  ['/messages', 'الرسائل'],
+];
 
 export async function SiteHeader() {
   let user = null;
@@ -22,65 +31,57 @@ export async function SiteHeader() {
     // Supabase not configured yet; the header still renders.
   }
 
+  const links = user ? [...NAV_PUBLIC, ...NAV_SIGNED_IN] : NAV_PUBLIC;
+
   return (
-    <header
-      style={{
-        position: 'relative',
-        zIndex: 2,
-        borderBottom: '1px solid var(--line)',
-        background: 'color-mix(in srgb, var(--surface) 88%, transparent)',
-        backdropFilter: 'saturate(140%) blur(6px)',
-      }}
-    >
+    <header className="site-header">
       <div
         className="shell site-header-inner"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 20,
-          minHeight: 62,
-        }}
+        style={{ display: 'flex', alignItems: 'center', gap: 24, minHeight: 66 }}
       >
         <Link
           href="/"
-          style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}
         >
+          <span aria-hidden className="brand-mark" />
           <span
-            aria-hidden
             style={{
-              display: 'inline-block',
-              width: 10,
-              height: 22,
-              background: 'var(--accent)',
-              clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0 100%)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 17,
+              letterSpacing: '-0.015em',
             }}
-          />
-          <span style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
+          >
             eFootball
           </span>
         </Link>
 
         <nav
           aria-label="التنقل الرئيسي"
-          style={{ display: 'flex', gap: 18, fontSize: 14, overflowX: 'auto' }}
+          style={{ display: 'flex', gap: 20, fontSize: 14, fontWeight: 600, overflowX: 'auto' }}
         >
-          <Link href="/tournaments">البطولات</Link>
-          <Link href="/news">الأخبار</Link>
-          {user ? <Link href="/dashboard">لوحتي</Link> : null}
-          {user ? <Link href="/messages">الرسائل</Link> : null}
+          {links.map(([href, label]) => (
+            <Link key={href} href={href} className="site-nav-link">
+              {label}
+            </Link>
+          ))}
         </nav>
 
-        <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
           {user ? (
             <>
               <NotificationBell />
-              <Link href="/dashboard/profile" style={{ fontSize: 14, fontWeight: 600 }}>
+              <Link
+                href="/dashboard/profile"
+                className="site-nav-link"
+                style={{ fontSize: 14, fontWeight: 700 }}
+              >
                 {displayName ?? 'حسابي'}
               </Link>
             </>
           ) : (
             <>
-              <Link href="/login" style={{ fontSize: 14 }}>
+              <Link href="/login" className="site-nav-link" style={{ fontSize: 14 }}>
                 دخول
               </Link>
               <Link
